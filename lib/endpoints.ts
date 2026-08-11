@@ -89,7 +89,7 @@ const TX_PRICING_TYPE: ParamSpec = {
   group: 'Routing',
   options: PRICING_TYPE_OPTIONS,
   description:
-    'Only relevant for dual-pricing merchants. Leave empty when ZCP is "None".',
+    'REQUIRED on a Dual Pricing merchant — omitting it fails with "CardPrice must be provided for ZCP option DualPricing". Prefilled automatically when the merchant is on Dual Pricing. Meaningless (leave empty) otherwise.',
 };
 
 const TX_REFERENCE_ID: ParamSpec = {
@@ -101,8 +101,8 @@ const TX_REFERENCE_ID: ParamSpec = {
 };
 
 const TX_CIT: ParamSpec = {
-  name: 'customerInitiatedTransaction',
-  label: 'customerInitiatedTransaction',
+  name: 'isCustomerInitiatedTransaction',
+  label: 'isCustomerInitiatedTransaction',
   type: 'boolean',
   default: true,
   group: 'Routing',
@@ -178,11 +178,17 @@ export const ENDPOINTS: readonly EndpointSpec[] = [
     id: 'transactions.list',
     namespace: 'transactions',
     label: 'List transactions',
-    signature: 'flute.transactions.list({ page, pageSize })',
+    signature: 'flute.transactions.list({ pageIndex, pageSize })',
     description: 'Paginated list of transactions for the merchant. Read-only.',
     implemented: true,
     params: [
-      { name: 'page', label: 'page', type: 'number', default: 1 },
+      {
+        name: 'pageIndex',
+        label: 'pageIndex',
+        type: 'number',
+        default: 0,
+        description: 'Zero-based. Echoed back in pageInfo.',
+      },
       { name: 'pageSize', label: 'pageSize', type: 'number', default: 25 },
     ],
   },
@@ -281,7 +287,7 @@ export const ENDPOINTS: readonly EndpointSpec[] = [
     id: 'transactions.capture',
     namespace: 'transactions',
     label: 'Capture authorization',
-    signature: 'flute.transactions.capture(transactionId, { amount? })',
+    signature: 'flute.transactions.capture(transactionId, { captureAmount? })',
     description:
       'Capture a previous `authorize`. Leave `amount` empty for a full capture, or pass a smaller amount for a partial capture.',
     mutating: true,
@@ -295,10 +301,11 @@ export const ENDPOINTS: readonly EndpointSpec[] = [
         placeholder: 'id returned by authorize',
       },
       {
-        name: 'amount',
-        label: 'amount (optional)',
+        name: 'captureAmount',
+        label: 'captureAmount (optional)',
         type: 'number',
-        description: 'Leave empty for a full capture. Must be ≤ originally authorised amount.',
+        description:
+          'Whole currency units — 7.5 is $7.50, not cents. Leave empty for a full capture. Must be ≤ the originally authorised amount.',
       },
     ],
   },
@@ -324,7 +331,7 @@ export const ENDPOINTS: readonly EndpointSpec[] = [
     id: 'transactions.refund',
     namespace: 'transactions',
     label: 'Refund (settled)',
-    signature: 'flute.transactions.refund(transactionId, { amount? })',
+    signature: 'flute.transactions.refund(transactionId, { reversalAmount? })',
     description:
       'Refund a settled card or ACH transaction. Card refunds may be partial; ACH refunds are full only.',
     notes:
@@ -339,10 +346,11 @@ export const ENDPOINTS: readonly EndpointSpec[] = [
         required: true,
       },
       {
-        name: 'amount',
-        label: 'amount (optional)',
+        name: 'reversalAmount',
+        label: 'reversalAmount (optional)',
         type: 'number',
-        description: 'Leave empty for a full refund (or for ACH, which only supports full).',
+        description:
+          'Whole currency units — 5 is $5.00, not cents. Leave empty for a full refund (or for ACH, which only supports full).',
       },
     ],
   },

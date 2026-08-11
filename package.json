@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
-    "@getflute/sdk": "^0.2.0",
+    "@getflute/sdk": "0.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
