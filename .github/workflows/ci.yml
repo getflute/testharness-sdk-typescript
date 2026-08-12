@@ -19,7 +19,10 @@ jobs:
   # credentials — and it should not be creating transactions on every PR.
   # Automated endpoint coverage lives in sdk-automation-tests-typescript.
   verify:
-    name: lint • typecheck • build
+    # The display name is what a branch ruleset matches on as a required
+    # status check, so it is kept plain ASCII and stable. Renaming it means
+    # updating the ruleset in lockstep or main becomes unmergeable.
+    name: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
