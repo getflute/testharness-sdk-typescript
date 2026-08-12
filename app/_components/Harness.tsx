@@ -46,6 +46,13 @@ export default function Harness({ config, merchant }: Props) {
   const defaultProcessorId =
     merchant && merchant.ok ? (merchant.defaultProcessorId ?? '') : '';
 
+  // A Dual Pricing merchant has two prices per transaction and the gateway
+  // refuses to guess — omitting `pricingType` fails with `CardPrice must be
+  // provided for ZCP option DualPricing`. Prefill it so the forms work out of
+  // the box, and leave it empty elsewhere where it is meaningless.
+  const defaultPricingType =
+    merchant && merchant.ok && merchant.zeroCostProcessingOption === 'DualPricing' ? 'Card' : '';
+
   /**
    * Pick a sensible test-card default based on what the merchant has:
    *   - TSYS only → 4012000098765439 (CVV 999)
@@ -74,6 +81,8 @@ export default function Harness({ config, merchant }: Props) {
         for (const p of ep.params) {
           if (p.name === 'paymentProcessorId' && defaultProcessorId) {
             fields[p.name] = defaultProcessorId;
+          } else if (p.name === 'pricingType' && defaultPricingType) {
+            fields[p.name] = defaultPricingType;
           } else if (defaultTestCard && ep.acceptsTestCard) {
             switch (p.name) {
               case 'cardNumber':

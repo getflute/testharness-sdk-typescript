@@ -85,6 +85,7 @@ export function createFluteClient(): Flute {
     environment:
       credentials.environment === 'production' ? Environment.Production : Environment.Sandbox,
     userAgentSuffix: 'testharness-sdk-typescript',
+    ...(readBaseUrlOverrides() ?? {}),
   };
   return new Flute(config);
 }
@@ -128,8 +129,12 @@ export async function fetchMerchantSnapshot(): Promise<MerchantSnapshot | Mercha
     const flute = createFluteClient();
     const settings = await flute.settings.getPaymentSettings();
     const processors = (settings.availablePaymentProcessors ?? []).map((p) => ({
-      id: String(p.id ?? ''),
-      name: p.name ?? null,
+      // The wire fields are `paymentProcessorId` / `processorName`. Reading
+      // `id` / `name` left every row blank, so the processor list rendered
+      // empty and the auto-suggested paymentProcessorId was an empty string —
+      // QA had to paste the GUID by hand.
+      id: String(p.paymentProcessorId ?? ''),
+      name: p.processorName ?? null,
       type: String(p.type ?? ''),
       isDefault: Boolean(p.isDefault),
     }));
@@ -148,4 +153,28 @@ export async function fetchMerchantSnapshot(): Promise<MerchantSnapshot | Mercha
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, message };
   }
+}
+
+/**
+ * Host overrides, applied on top of whatever `FLUTE_ENV` selects.
+ *
+ * Required for internal rings. From `@getflute/sdk@0.3.0` onward
+ * `environment: 'sandbox'` resolves to the public Flute sandbox, which does
+ * not know internal credentials — the OAuth handshake fails with
+ * `invalid_client` and every call in the harness returns a bare 401.
+ *
+ * Each is optional and independent; anything omitted keeps the SDK default.
+ */
+function readBaseUrlOverrides(): Pick<FluteConfig, 'baseUrls'> | undefined {
+  const isvApi = process.env.FLUTE_ISV_API_URL?.trim();
+  const payIntApi = process.env.FLUTE_PAY_INT_API_URL?.trim();
+  const oauth = process.env.FLUTE_OAUTH_URL?.trim();
+  if (!isvApi && !payIntApi && !oauth) return undefined;
+  return {
+    baseUrls: {
+      ...(isvApi ? { isvApi } : {}),
+      ...(payIntApi ? { payIntApi } : {}),
+      ...(oauth ? { oauth } : {}),
+    },
+  };
 }

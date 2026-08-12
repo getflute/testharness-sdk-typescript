@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Static checks only. The harness is an interactive tool driven by hand
+  # against a live sandbox, so there is nothing meaningful to assert without
+  # credentials — and it should not be creating transactions on every PR.
+  # Automated endpoint coverage lives in sdk-automation-tests-typescript.
+  verify:
+    # The display name is what a branch ruleset matches on as a required
+    # status check, so it is kept plain ASCII and stable. Renaming it means
+    # updating the ruleset in lockstep or main becomes unmergeable.
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Catches the class of break that matters most here: the harness is
+      # data-driven from lib/endpoints.ts, and a type mismatch between an
+      # endpoint's declared params and its dispatch case in app/actions.ts
+      # surfaces at build time rather than as a runtime failure QA has to
+      # diagnose from the browser.
+      - name: Build
+        run: npm run build

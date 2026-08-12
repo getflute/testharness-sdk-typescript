@@ -106,10 +106,13 @@ async function dispatch(endpointId: string, raw: Record<string, unknown>): Promi
 
     case 'transactions.list': {
       const flute = createFluteClient();
-      const page = numberOrUndefined(raw.page);
+      // `pageIndex`, not `page`, and zero-based. The API ignores unknown
+      // query parameters rather than rejecting them, so the old spelling
+      // silently returned page 0 for every request.
+      const pageIndex = numberOrUndefined(raw.pageIndex);
       const pageSize = numberOrUndefined(raw.pageSize);
       return await flute.transactions.list({
-        ...(page !== undefined ? { page } : {}),
+        ...(pageIndex !== undefined ? { pageIndex } : {}),
         ...(pageSize !== undefined ? { pageSize } : {}),
       });
     }
@@ -146,8 +149,11 @@ async function dispatch(endpointId: string, raw: Record<string, unknown>): Promi
     case 'transactions.capture': {
       const flute = createFluteClient();
       const id = stringRequired(raw.transactionId, 'transactionId');
-      const amount = numberOrUndefined(raw.amount);
-      return await flute.transactions.capture(id, amount !== undefined ? { amount } : undefined);
+      const captureAmount = numberOrUndefined(raw.captureAmount);
+      return await flute.transactions.capture(
+        id,
+        captureAmount !== undefined ? { captureAmount } : undefined,
+      );
     }
 
     case 'transactions.void': {
@@ -159,8 +165,11 @@ async function dispatch(endpointId: string, raw: Record<string, unknown>): Promi
     case 'transactions.refund': {
       const flute = createFluteClient();
       const id = stringRequired(raw.transactionId, 'transactionId');
-      const amount = numberOrUndefined(raw.amount);
-      return await flute.transactions.refund(id, amount !== undefined ? { amount } : undefined);
+      const reversalAmount = numberOrUndefined(raw.reversalAmount);
+      return await flute.transactions.refund(
+        id,
+        reversalAmount !== undefined ? { reversalAmount } : undefined,
+      );
     }
 
     case 'paymentSessions.create': {
@@ -231,7 +240,7 @@ function buildCardTransactionParams(raw: Record<string, unknown>) {
   const paymentProcessorId = stringOrUndefined(raw.paymentProcessorId);
   const pricingType = stringOrUndefined(raw.pricingType);
   const referenceId = stringOrUndefined(raw.referenceId);
-  const customerInitiatedTransaction = booleanOrUndefined(raw.customerInitiatedTransaction);
+  const isCustomerInitiatedTransaction = booleanOrUndefined(raw.isCustomerInitiatedTransaction);
 
   const cardNumber = stringRequired(raw.cardNumber, 'cardNumber').replace(/\s+/g, '');
   const securityCode = stringRequired(raw.securityCode, 'securityCode').trim();
@@ -254,7 +263,7 @@ function buildCardTransactionParams(raw: Record<string, unknown>) {
     ...(paymentProcessorId !== undefined ? { paymentProcessorId } : {}),
     ...(pricingType !== undefined ? { pricingType: pricingType as 'Card' | 'Cash' } : {}),
     ...(referenceId !== undefined ? { referenceId } : {}),
-    ...(customerInitiatedTransaction !== undefined ? { customerInitiatedTransaction } : {}),
+    ...(isCustomerInitiatedTransaction !== undefined ? { isCustomerInitiatedTransaction } : {}),
     transactionDetails: {
       cardData: {
         paymentMethodDetails: {
