@@ -112,6 +112,13 @@ export type MerchantSnapshotError = {
 };
 
 /**
+ * `PaymentProcessorType` values that can take card data, from the v2 spec's
+ * enum `['Tsys', 'Ach', 'SandboxCard', 'SandboxAch']`. Matched positively so
+ * an unfamiliar processor type is not assumed card-capable.
+ */
+const CARD_PROCESSOR_TYPES = new Set(['Tsys', 'SandboxCard']);
+
+/**
  * Best-effort fetch of the merchant payment configuration for the
  * top-bar. Used to:
  * - show the merchant name + processors,
@@ -142,8 +149,22 @@ export async function fetchMerchantSnapshot(): Promise<MerchantSnapshot | Mercha
       ok: true,
       companyName: settings.companyName ?? null,
       mccCode: settings.mccCode ?? null,
+      // Prefer a card processor. `isDefault` does not disambiguate — sandbox
+      // merchants report it true on every processor — so picking the first
+      // flagged one is really picking by array order, and that order is not
+      // stable between accounts:
+      //
+      //   sandbox-uat merchant   SandboxCard → SandboxAch
+      //   production sandbox     SandboxAch  → SandboxCard
+      //
+      // This value pre-fills `paymentProcessorId` on every form, so getting it
+      // wrong means a card sale is attempted against an ACH processor and
+      // comes back as a bare 400 with an empty error body.
       defaultProcessorId:
-        processors.find((p) => p.isDefault)?.id ?? processors[0]?.id ?? null,
+        processors.find((p) => CARD_PROCESSOR_TYPES.has(p.type))?.id ??
+        processors.find((p) => p.isDefault)?.id ??
+        processors[0]?.id ??
+        null,
       processors,
       zeroCostProcessingOption: settings.zeroCostProcessingOption ?? null,
       isTipsEnabled: Boolean(settings.isTipsEnabled),
