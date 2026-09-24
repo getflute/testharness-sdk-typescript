@@ -29,14 +29,22 @@ export type HarnessConfigStatus =
       sdkVersion: string;
     };
 
-const SANDBOX_ALIASES = new Set(['sandbox', 'uat', 'dev', 'development', 'staging', 'stage']);
 const PRODUCTION_ALIASES = new Set(['production', 'prod', 'live']);
 
+/**
+ * The SDK has two environments, so this has two. Anything unrecognised is
+ * sandbox, which is the safe default — production has to be asked for.
+ *
+ * There used to be a SANDBOX_ALIASES set naming 'uat', 'dev' and 'staging'.
+ * It was redundant, since unrecognised values already land here, and it did
+ * real harm: advertising `uat` as a synonym for sandbox is what sent us
+ * looking for sandbox credentials in an internal environment for a week. UAT
+ * is a different environment, not another word for sandbox. Reach it with the
+ * FLUTE_*_URL host overrides instead.
+ */
 function detectEnv(raw: string | undefined): HarnessEnvironment {
   const value = (raw ?? 'sandbox').toLowerCase().trim();
-  if (PRODUCTION_ALIASES.has(value)) return 'production';
-  if (SANDBOX_ALIASES.has(value)) return 'sandbox';
-  return 'sandbox';
+  return PRODUCTION_ALIASES.has(value) ? 'production' : 'sandbox';
 }
 
 function maskCredential(value: string): string {
